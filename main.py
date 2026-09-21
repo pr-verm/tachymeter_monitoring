@@ -13,7 +13,7 @@ Dieses Modul ist das "Main"-Modul des ganzen Programms.
 Alle relevanten Parameter können im Arbeitsverzeichnis unter /parameter/params.txt angepasst werden.
 """
 
-# Import der Sensor-Klassen
+
 from sensor import Thermometer, PressureManager, ThermometerException
 
 PARAM_ORDNER = "parameter"
@@ -24,17 +24,17 @@ ORDNER_RES = "ergebnisse"
 
 
 def finde_usb_ports():
-    # Fallback-Ports, falls mal etwas nicht erkannt wird
+   
     port_ts = '/dev/ttyUSB0' 
     port_temp = '/dev/ttyUSB1' 
     
     for p in serial.tools.list_ports.comports():
-        # FTDI-Chip (0403:6001) -> Totalstation
+        # FTDI-Chip (0403:6001) -> Totalstation evtl. ändern !!!
         if p.vid == 0x0403 and p.pid == 0x6001:
             port_ts = p.device
             print(f"Totalstation gefunden an: {port_ts}")
             
-        # Prolific-Chip (067B:23A3) -> Thermometer
+        # Prolific-Chip (067B:23A3) -> Thermometer evtl. ändern !!!
         elif p.vid == 0x067B and p.pid == 0x23A3:
             port_temp = p.device
             print(f"Thermometer gefunden an: {port_temp}")
@@ -45,7 +45,7 @@ def lade_parameter():
     if not os.path.exists(PARAM_DATEI):
         if not os.path.exists(PARAM_ORDNER): os.makedirs(PARAM_ORDNER)
         data = {
-            "_info": "Trick 1: Kommentar-Key",
+            "_info": "Kommentar-Key",
             "PKTLISTE": [["FP_1", 0.0, 77.55, 0.0175], ["M_6", 187.15, 101.76, 0.0175]],
             "SOLL_KOORDINATEN": [{"PNR": "FP_1", "x": 10013.519, "y": 50000.0, "z": 105.143}],
             "S_HZ_GON": 0.001, "S_VZ_GON": 0.001, "S_DIST_M": 0.002,
@@ -107,7 +107,7 @@ def main():
     for o in [ORDNER_RAW, ORDNER_RES]: 
         if not os.path.exists(o): os.makedirs(o)
 
-    # --- Parameter-Struktur normalisieren ---
+    
     params = {k.upper(): v for k, v in params_raw.items()}
     
     config = params.get("PARAMS", {})
@@ -164,7 +164,7 @@ def main():
         
         neupunkte = []
         if gma.konvergiert:
-            # PKTLISTE Update (In-Memory)
+            # PKTLISTE Update 
             for mw in satzmessung.saetze_mittel:
                 mw_pnr = str(mw.get("PNR") or "")
                 if not mw_pnr: continue
@@ -206,8 +206,7 @@ def main():
             except Exception as e:
                 print(f"Fehler beim Aufruf von upload.py: {e}")
 
-        # NEU: Text Bericht schreiben (ersetzt PDF)
-        # Übergebe params_raw, damit die Residuen anhand der SOLL_KOORDINATEN berechnet werden können
+        
         txt_path = os.path.join(ORDNER_RES, f"{zeit}_ausgleichung.txt")
         berichte.schreibe_ausgleichung_txt(txt_path, gma, neupunkte, params_raw)
         

@@ -33,10 +33,10 @@ class execute():
         self.ts_port = ts_port
         
         try:
-            # 1. Neue ausfallsichere Verbindungsroutine aufrufen
+            
             self._connect_with_retries()
             
-            # 2. Regulärer Ablauf startet ab hier
+           
             self.set_prism_type(BAPPrismenType.BAP_PRISM_ROUND)
             atmo_data = AtmosphericCorrectionData(0.2818, self.druck, self.temp, self.temp)
             print(f"Sende Atmo-Daten: {self.temp}°C bei {self.druck}hPa")
@@ -133,18 +133,18 @@ class execute():
                 print("Warte 5 Sekunden auf Instrument...")
                 time.sleep(5)
                 
-                # Testbefehl absenden, um Timeout abzufangen
+               
                 print("Prüfe Kommunikationsebene...")
                 instr_name = self.totalstation.get_instrument_name()
                 print(f"Erfolgreich verbunden mit: {instr_name}")
                 
-                # Wenn wir bis hierher kommen, war alles erfolgreich -> Schleife abbrechen
+                
                 return
                 
             except Exception as e:
                 print(f"Verbindungsfehler bei Versuch {versuch + 1}: {e}")
                 
-                # Port sicherheitshalber schließen, um ihn für den nächsten Versuch freizugeben
+               
                 if hasattr(self, 'totalstation'):
                     try:
                         self.totalstation.serialPort.close()
@@ -155,7 +155,7 @@ class execute():
                     print("Warte 10 Sekunden vor dem nächsten Versuch...")
                     time.sleep(10)
                     
-        # Wenn die Schleife ohne 'return' durchläuft, schlug alles fehl
+        
         raise ConnectionError("Abbruch: Tachymeter reagiert auch nach 3 Versuchen nicht auf Befehle.")
 
     def connect(self):

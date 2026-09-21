@@ -217,7 +217,7 @@ class GaussMarkovAusgleichung:
         print("-" * 85)
         for p in self.punkte:
             g_ber = self.x[:3] + R @ p['l']
-            v = (p['g'] - g_ber) * 1000 # In mm für bessere Lesbarkeit
+            v = (p['g'] - g_ber) * 1000 
             dist = np.linalg.norm(v)
             print(f"{p['PNR']:<10} | {v[0]:>9.1f} | {v[1]:>9.1f} | {v[2]:>9.1f} | {dist:>12.1f}")
         print("="*85)

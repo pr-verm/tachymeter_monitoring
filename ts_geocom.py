@@ -1,7 +1,7 @@
 import math
 from pyGeoCOM.surveytools import Angle
 from pyGeoCOM.GeoComLite import TotalStation, AtmosphericCorrectionData 
-from pyGeoCOM.GeoComEnumeration import PositionMode, ATRMode, EDMMeasurementMode, BAPPrismenType 
+from pyGeoCOM.GeoComEnumeration import PositionMode, ATRMode, EDMMeasurementMode, BAPPrismenType, LeicaReturnCode
 import time
 from messung import Messung, Satz, Position, Punkt, Ziel
 
@@ -11,28 +11,20 @@ from messung import Messung, Satz, Position, Punkt, Ziel
 
 rho = 200/math.pi
 
-class sortierer():
-    """
-    Sortiert die Ziele eines Standorts nach HZ 
-    auf = True  aufsteigend
-    auf = False absteigend
-    """
-
-    def output(messung: Messung, auf: bool):
-        return sorted(messung.standort.aktive_ziele(), key=lambda z: z.hz, reverse=not auf)
-        
-        
+            
 
 class execute():
     def __init__(self, messung: Messung, anz_saetze: int, temp: float = 20.0, druck: float = 1000, ts_port: str = '/dev/ttyUSB1', ts_baudrate = 115200, versuche = 1, nachholen: bool = True):
         self.anz_saetze = anz_saetze
         self.messung = messung
-        self.ziele = sortierer.output(self.messung, True)
         self.temp = temp
         self.druck = druck
         self.ts_port = ts_port
         self.ts_baudrate = ts_baudrate
-        self.versuche = versuche #wie oft versucht wird, ein Ziel zu messen
+        if versuche >= 1:
+            self.versuche = versuche #wie oft versucht wird, ein Ziel zu messen
+        else:
+            raise(ValueError(f"Versuche muss größer gleich 1 sein, es ist: {versuche}"))
         self.nachholen = nachholen #ob am Satzende unvollständige Messungen nochmal probiert werden sollen
         
         try:
@@ -119,8 +111,8 @@ class execute():
         
 
     def moveit(self, ph, pv):
-        self.totalstation.set_telescope_position(Angle.from_gon(ph%400), Angle.from_gon(pv%400), 
-                                                 PositionMode.AUT_NORMAL, ATRMode.AUT_TARGET)
+        return self.totalstation.set_telescope_position(Angle.from_gon(ph%400), Angle.from_gon(pv%400), 
+                                                         PositionMode.AUT_NORMAL, ATRMode.AUT_TARGET)
                                                  
 
     def changeEDMmode(self, index):
@@ -144,7 +136,12 @@ class execute():
         for versuch in range(1, self.versuche + 1):
             try:
                 print(f"Lage {lage}: Punkt {ziel.punkt.name} (Versuch {versuch})")
-                self.moveit(hz, vz)
+                
+                rc = self.moveit(hz, vz)
+                if rc != LeicaReturnCode.GRC_OK:
+                    print(f"  Anzielen fehlgeschlagen: {rc}")
+                    continue
+                
                 m_obj = self.totalstation.measure(ziel.punkt.name, self.atmo_data, time.time())
                 if m_obj is None or not m_obj.slope_distances or m_obj.slope_distances <= 0:
                     print(f"  keine gültige Strecke")
@@ -159,15 +156,16 @@ class execute():
             except Exception as e:
                 print(f"  Fehler: {e}")
         return False
+        
 
     def messe_satz(self, satz_nr: int):
         """Misst einen Satz"""    
         print(f"Satz {satz_nr} startet...")
         satz = self.messung.neuer_satz()
 
-        for ziel in sortierer.output(self.messung, True):
+        for ziel in self.sortierte_ziele(True):
             self._messe_ziel(satz, ziel, "I")
-        for ziel in sortierer.output(self.messung, False):
+        for ziel in self.sortierte_ziele(False):
             self._messe_ziel(satz, ziel, "II")
 
         if self.nachholen:
@@ -178,4 +176,9 @@ class execute():
 
         for ziel in satz.unvollstaendige_ziele():
             print(f"WARNUNG Satz {satz_nr}: {ziel.punkt.name} -> {satz.status(ziel)}") 
+            
+    
+    def sortierte_ziele(self, aufsteigend: bool) -> list[Ziel]:
+        """Aktive Ziele des Standorts, sortiert nach Hz."""
+        return sorted(self.messung.standort.aktive_ziele(), key=lambda z: z.hz, reverse=not aufsteigend)
                         

@@ -6,17 +6,48 @@ from typing import Literal
 
 
 class Punkt:
-    """Ein Punkt stellt einen Messpunkt dar. Er hat eine Referenzposition, auf welcher der Punkt dargestellt wird."""
+    """Ein Punkt stellt einen Messpunkt dar.
+       Er hat eine Darstellungskoordinate (nur für die Anzeige in Übersichtskarten, ohne Aussage über die tatsächliche Lage)
+       und eine Historie von Sollkoordinaten. Ist zu einem Zeitpunkt eine Sollkoordinate gültig, ist der Punkt zu diesem
+       Zeitpunkt ein Anschlusspunkt."""
 
-    def __init__(self, name, referenz: Koordinate):
+    def __init__(self, name: str, darstellung: Koordinate, soll_historie: list[SollKoordinate] | None = None):
         self.name = name
-        if not referenz.system == "global":
-            raise ValueError("Referenzkoordinate muss im globalen System angegeben sein.")
-        else: 
-            self.referenz = referenz  
-        
+        if darstellung.system != "global":
+            raise ValueError("Darstellungskoordinate muss im globalen System angegeben sein.")
+        self.darstellung = darstellung
+
+        self.soll_historie: list[SollKoordinate] = []
+        for s in soll_historie or []:
+            self.neue_sollkoordinate(s.koordinate, s.gueltig_ab, s.quelle)
+
     def __str__(self):
         return f"Punkt({self.name})"
+
+    __repr__ = __str__
+
+    def neue_sollkoordinate(self, koordinate: Koordinate | None, gueltig_ab: datetime.datetime, quelle: str = "") -> SollKoordinate:
+        """Fügt eine neue Sollkoordinate zur Historie hinzu.
+           koordinate=None bedeutet: ab diesem Zeitpunkt kein Anschlusspunkt mehr."""
+        if koordinate is not None and koordinate.system != "global":
+            raise ValueError("Sollkoordinate muss im globalen System angegeben sein.")
+        if any(s.gueltig_ab == gueltig_ab for s in self.soll_historie):
+            raise ValueError(f"Für {self.name} existiert bereits eine Sollkoordinate gültig ab {gueltig_ab}.")
+
+        soll = SollKoordinate(koordinate, gueltig_ab, quelle)
+        self.soll_historie.append(soll)
+        self.soll_historie.sort(key=lambda s: s.gueltig_ab)
+        return soll
+
+    def sollkoordinate_zu(self, zeitpunkt: datetime.datetime) -> SollKoordinate | None:
+        """Gibt den zum Zeitpunkt gültigen Eintrag der Historie zurück, oder None, falls noch keiner gültig ist."""
+        gueltige = [s for s in self.soll_historie if s.gueltig_ab <= zeitpunkt]
+        return gueltige[-1] if gueltige else None
+
+    def ist_anschlusspunkt(self, zeitpunkt: datetime.datetime) -> bool:
+        """True, wenn zum Zeitpunkt eine Sollkoordinate gültig ist (und der Punkt nicht deaktiviert wurde)."""
+        s = self.sollkoordinate_zu(zeitpunkt)
+        return s is not None and s.koordinate is not None
 
 
 class Standort:
@@ -89,13 +120,21 @@ class Koordinate:
         if self.kovarianzmatrix is not None:
             return np.sqrt(np.diag(self.kovarianzmatrix))
         return None
+
+class SollKoordinate:
+    """Eine Sollkoordinate ist eine Koordinate, die als Referenz für einen Punkt dient. 
+    Sie hat einen Zeitpunkt, ab dem sie verwendet wird, und eine Quelle, aus der sie stammt."""
+    def __init__(self, koordinate: Koordinate | None, gueltig_ab: datetime, quelle: str = ""):
+        self.koordinate = koordinate   # None = ab hier kein Anschlusspunkt mehr
+        self.gueltig_ab = gueltig_ab
+        self.quelle = quelle           # z. B. "Netzmessung 2026-03"
     
 
 class Position:
     """Eine Position stellt eine Messung eines Messpunktes dar. Sie hat eine lokaleKoordinate. Zu dieser Koordinate wird nach Transformation eine globale Koordinate hinzugefügt.
         Sie ist mit einem Punkt und einer Messung verknüpft, um die Position zuordnen zu können."""
 
-    def __init__(self, koordinate: Koordinate, punkt: Punkt, messung: Messung | None=None):
+    def __init__(self, koordinate: Koordinate, punkt: Punkt, messung: Messung | None=None, ):
         self.koordinaten: dict[str, Koordinate] = {} #"lokal" oder "global"
         self.set_koordinate(koordinate)
 

@@ -129,3 +129,18 @@ class Messung:
                 return pos
         return None
 
+
+class Messwert():
+    def __init__(self, messung: Messung, ziel: Ziel, hz: float, vz: float, strecke: float, lage: Literal["I", "II"]):
+            self.messung = messung
+            self.ziel = ziel
+            self.hz = hz
+            self.vz = vz
+            self.strecke = strecke #Strecke, gemessen, in 3D
+            if lage not in ("I", "II"):
+                raise ValueError(f"Ungültige Lage: {lage!r} (erlaubt: 'I', 'II')")
+            else:
+                self.lage = lage
+
+    
+    

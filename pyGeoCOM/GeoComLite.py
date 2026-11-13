@@ -359,11 +359,7 @@ class TotalStation(object):
         return a
 
     def measure(self, target_nr: int, atmo, measure_time):
-        #testweise ein fineadjust force, um ergebnis zu verbessern
-        #h_suchbereich = Angle(0.005*math.pi/200)
-        #v_suchbereich = Angle(0.005*math.pi/200)
-        #self.fine_adjust(h_suchbereich,v_suchbereich)
-        
+            
         # start distance measurement
         print('start distance measurement')
         self.do_measure(TMCMeasurementMode.TMC_DEF_DIST, TMCInclinationSensorMeasurementProgram.TMC_AUTO_INC)
@@ -374,14 +370,14 @@ class TotalStation(object):
             if m.slope_distances > 0:
                 return m
 
-        print("no Distance arrived, searching...")
-        ##hier hat paul rumgepfuscht
-        ##ACHTUNG: winkel in gon eintragen, vorher distanz zu zielen berücksichtigen, es darf kein überlapp entstehen!!!
-        #h_suchbereich = Angle(3.0*math.pi/200)
-        #v_suchbereich = Angle(3.0*math.pi/200)
-        #self.fine_adjust(h_suchbereich,v_suchbereich)
+        print("no Distance arrived")
+        
+        
+        
+        """
+        deaktiviert, da eigene, flexible Behandlung in der Gerätesteuerung
         
         print("Try new measurement")
         self.do_measure(TMCMeasurementMode.TMC_DEF_DIST, TMCInclinationSensorMeasurementProgram.TMC_AUTO_INC)
         time.sleep(20)
-        return self.get_simple_measurement(30, TMCInclinationSensorMeasurementProgram.TMC_AUTO_INC, target_nr, atmo, measure_time)
+        return self.get_simple_measurement(30, TMCInclinationSensorMeasurementProgram.TMC_AUTO_INC, target_nr, atmo, measure_time)"""

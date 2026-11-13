@@ -215,6 +215,17 @@ class Satz:
             if mw.ziel == ziel and mw.lage == lage:
                 return mw
         return None
+        
+    def status(self, ziel: Ziel) -> Literal["komplett", "nur_I", "nur_II", "fehlt"]:
+        l1 = self.messwert_von(ziel, "I") is not None
+        l2 = self.messwert_von(ziel, "II") is not None
+        if l1 and l2: return "komplett"
+        if l1:        return "nur_I"
+        if l2:        return "nur_II"
+        return "fehlt"
+
+    def unvollstaendige_ziele(self) -> list[Ziel]:
+        return [z for z in self.messung.standort.aktive_ziele() if self.status(z) != "komplett"]
 
 
 class Messwert():

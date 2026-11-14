@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from typing import Literal
 
-
+Lage = Literal["I","II","Mittel"]
 
 class Punkt:
     """Ein Punkt stellt einen Messpunkt dar.
@@ -121,6 +121,7 @@ class Koordinate:
             return np.sqrt(np.diag(self.kovarianzmatrix))
         return None
 
+
 class SollKoordinate:
     """Eine Sollkoordinate ist eine Koordinate, die als Referenz für einen Punkt dient. 
     Sie hat einen Zeitpunkt, ab dem sie verwendet wird, und eine Quelle, aus der sie stammt."""
@@ -144,9 +145,6 @@ class Position:
     def set_koordinate(self, k: Koordinate):
         self.koordinaten[k.system] = k
 
-    
-    
-
 
 class Messung:
     """Eine Messung stellt eine Sammlung von Positionen dar, die von einem Standpunkt zu einem bestimmten Zeitpunkt gemessen wurden.
@@ -157,6 +155,7 @@ class Messung:
         self.standort = standort
         self.zeitstempel = zeitstempel
         self.saetze = []  # Sätze in dieser Messung werden erst durch neuer_satz hinzugefügt
+        self.mittelsatz: Satz | None = None #dieser Satz ist nicht in der Satzliste, da er das MaaS enthält
 
         self.positionen = []  # Positionen in dieser Messung werden erst durch add_position hinzugefügt
         for p in positionen or []:
@@ -169,6 +168,10 @@ class Messung:
         satz = Satz(self)
         self.saetze.append(satz)
         return satz
+        
+    def neuer_mittelsatz(self):
+        self.mittelsatz = Satz(self)
+        return self.mittelsatz
 
     def add_position(self, position: Position):
         """Fügt eine neue Position zur Messung hinzu."""
@@ -196,20 +199,20 @@ class Satz:
     def __init__(self, messung: Messung):
         self.messung = messung
         self.messwerte = []  # Messwerte in diesem Satz werden erst durch neuer_messwert hinzugefügt
-        
 
     def __str__(self):
         return f"Satz({self.messung.standort.name}, {self.messung.zeitstempel})"
-
-    def neuer_messwert(self, ziel: Ziel, hz: float, vz: float, strecke: float, lage: Literal["I", "II"]):
+        
+    def neuer_messwert(self, ziel: Ziel, hz: float, vz: float, strecke: float, lage: Lage):
+        if self is self.messung.mittelsatz and lage != "Mittel":
+            raise ValueError("In den Mittelsatz gehören nur Mittel aus allen Sätzen (Lage 'Mittel').")
         if self.messwert_von(ziel, lage) is not None:
             raise ValueError(f"Messwert für Ziel {ziel.punkt.name} und Lage {lage} ist bereits vorhanden.")
-        else:
-            messwert = Messwert(self, ziel, hz, vz, strecke, lage)
-            self.messwerte.append(messwert)
-            return messwert
+        messwert = Messwert(self, ziel, hz, vz, strecke, lage)
+        self.messwerte.append(messwert)
+        return messwert
 
-    def messwert_von(self, ziel: Ziel, lage: Literal["I", "II"]):
+    def messwert_von(self, ziel: Ziel, lage: Lage):
         """Gibt den Messwert eines bestimmten Ziels zurück, falls vorhanden."""
         for mw in self.messwerte:
             if mw.ziel == ziel and mw.lage == lage:
@@ -226,19 +229,26 @@ class Satz:
 
     def unvollstaendige_ziele(self) -> list[Ziel]:
         return [z for z in self.messung.standort.aktive_ziele() if self.status(z) != "komplett"]
-
+    
+    def vollstaendige_ziele(self) -> list[Ziel]
+        return [z for z in self.messung.standort.aktive_ziele() if self.status(z) == "komplett"]
+        
+    def entferne_mittel(self):
+        """Entfernt alle Lagenmittel aus dem Satz, z. B. vor einer erneuten Auswertung."""
+        self.messwerte = [mw for mw in self.messwerte if mw.lage != "Mittel"]
+    
 
 class Messwert():
     """Ein Messwert stellt eine Messung eines Ziels dar, die zu einem bestimmten Zeitpunkt von einem Standort aus gemessen wurde.
-       Ein Messwert hat einen Satz, ein Ziel, einen horizontalen Winkel, einen vertikalen Winkel, eine Strecke und eine Lage (I oder II)."""
-    def __init__(self, satz: Satz,  ziel: Ziel, hz: float, vz: float, strecke: float, lage: Literal["I", "II"]):
+       Ein Messwert hat einen Satz, ein Ziel, einen horizontalen Winkel, einen vertikalen Winkel, eine Strecke und eine Lage (I oder II ). Ein Lagenmittel wird mit Lage "Mittel" abgespeichert"""
+    def __init__(self, satz: Satz,  ziel: Ziel, hz: float, vz: float, strecke: float, lage: Lage):
         self.satz = satz
         self.ziel = ziel
         self.hz = hz #rad
         self.vz = vz #rad
         self.strecke = strecke #Strecke, gemessen, in 3D [m]
-        if lage not in ("I", "II"):
-            raise ValueError(f"Ungültige Lage: {lage!r} (erlaubt: 'I', 'II')")
+        if lage not in ("I", "II", "Mittel"):
+            raise ValueError(f"Ungültige Lage: {lage!r} (erlaubt: 'I', 'II', 'Mittel')")
         else:
             self.lage = lage
 
